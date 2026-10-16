@@ -1,0 +1,105 @@
+# Everything runs on one machine. Each implementation gets its own CPU cores and the same memory limit;
+# k6 and the monitoring stack have cores of their own, so they never compete with an implementation.
+# Only Caddy is reachable from outside. Grafana listens on 127.0.0.1:3000 for deploy/deployer.sh.
+#   cp .env.example .env && docker compose up -d --build
+name: plw
+
+x-impl: &impl
+  restart: always
+  mem_limit: ${MEM_LIMIT:-1g}
+  memswap_limit: ${MEM_LIMIT:-1g}
+  environment: &impl-env
+    CAPACITY: ${CAPACITY:-500000}
+  labels:
+    plw.impl: "true"
+
+services:
+  go:
+    <<: *impl
+    container_name: plw-go
+    build: ../impls/go
+    cpuset: ${CPUS_GO:-0,1}
+    environment:
+      <<: *impl-env
+      GOMEMLIMIT: 900MiB          # the Go runtime does not read the container memory limit by itself
+
+  rust:
+    <<: *impl
+    container_name: plw-rust
+    build: ../impls/rust
+    cpuset: ${CPUS_RUST:-2,3}
+
+  k6:
+    image: grafana/k6:1.8.2
+    container_name: plw-k6
+    restart: always
+    cpuset: ${CPUS_LOAD:-4,5}
+    depends_on: [go, rust, prometheus]
+    volumes: [../load:/load:ro]
+    command: run --no-summary -o experimental-prometheus-rw /load/cache.js
+    environment:
+      TARGETS: go=http://go:8000,rust=http://rust:8000
+      RATE: ${RATE:-5000}
+      KEYS: ${KEYS:-1000000}
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(50),p(95),p(99),max
+      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.57.0
+    container_name: plw-cadvisor
+    restart: always
+    cpuset: ${CPUS_INFRA:-6,7}
+    privileged: true
+    command: [--docker_only=true, --housekeeping_interval=5s, --store_container_labels=false, --whitelisted_container_labels=plw.impl]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # Docker Desktop keeps the socket outside /var/run
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    container_name: plw-prometheus
+    restart: always
+    cpuset: ${CPUS_INFRA:-6,7}
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=90d, --web.enable-remote-write-receiver]
+    volumes: [./prometheus.yml:/etc/prometheus/prometheus.yml:ro, prometheus:/prometheus]
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    container_name: plw-grafana
+    restart: always
+    cpuset: ${CPUS_INFRA:-6,7}
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env}
+      GF_SERVER_ROOT_URL: ${PUBLIC_URL:-http://localhost:8097}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_ANONYMOUS_HIDE_VERSION: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/language-wars.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+
+  caddy:
+    image: caddy:2.11
+    container_name: plw-caddy
+    restart: always
+    cpuset: ${CPUS_INFRA:-6,7}
+    ports: ["${HTTP_PORT:-8097}:80", "${HTTPS_PORT:-8447}:443"]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, ../site:/srv/site:ro, caddy:/data]
+
+volumes:
+  prometheus:
+  grafana:
+  caddy:

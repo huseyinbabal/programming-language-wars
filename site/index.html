@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programming Language Wars</title>
+<meta name="description" content="The same in-memory cache in Go and Rust, under the same load around the clock, on the same machine. Live Grafana graphs, and every merged pull request marked on them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f14; --panel: #111821; --line: #1f2a37; --text: #e6edf3; --muted: #8b98a8;
+  --go: #00ADD8; --rust: #F74C00; --accent: #F2CC0C;
+  --mono: "JetBrains Mono", ui-monospace, monospace; --sans: Inter, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; }
+a { color: inherit; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+header { padding: 72px 0 40px; border-bottom: 1px solid var(--line);
+  background: radial-gradient(800px 300px at 15% 0%, rgba(0,173,216,.14), transparent 70%),
+              radial-gradient(800px 300px at 85% 0%, rgba(247,76,0,.14), transparent 70%); }
+.live { display: inline-flex; align-items: center; gap: 8px; font: 600 13px var(--mono); color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 0 0 rgba(63,185,80,.6); animation: pulse 2s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(63,185,80,0); } 100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); } }
+h1 { font-size: clamp(36px, 6vw, 64px); line-height: 1.05; margin: 18px 0 12px; font-weight: 800; letter-spacing: -.02em; }
+h1 .go { color: var(--go); } h1 .rust { color: var(--rust); }
+.lead { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 760px; margin: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; padding: 0; list-style: none; }
+.facts li { font: 500 14px var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.facts b { color: var(--text); }
+section { padding: 48px 0; border-bottom: 1px solid var(--line); }
+h2 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 0 0 24px; }
+.bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 20px; }
+.range { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.range button { font: 600 13px var(--mono); color: var(--muted); background: var(--panel); border: 0; padding: 8px 14px; cursor: pointer; }
+.range button + button { border-left: 1px solid var(--line); }
+.range button[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.card iframe { display: block; width: 100%; border: 0; }
+.s3 { grid-column: span 4; } .s3 iframe { height: 150px; }
+.s6 { grid-column: span 6; } .s6 iframe { height: 300px; }
+.s4 { grid-column: span 4; } .s4 iframe { height: 260px; }
+.s12 { grid-column: span 12; } .s12 iframe { height: 260px; }
+@media (max-width: 860px) { .s3, .s6, .s4 { grid-column: span 12; } }
+.cols { display: grid; gap: 24px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+code { font: 14px var(--mono); background: #0d131b; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.table-scroll { overflow-x: auto; }
+.contenders { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 640px) { .contenders { grid-template-columns: 1fr; } }
+.contender { padding: 20px; border-top: 3px solid; }
+.contender.go { border-top-color: var(--go); } .contender.rust { border-top-color: var(--rust); }
+.contender h3 { margin: 0 0 8px; font-size: 20px; }
+.contender p { margin: 0; color: var(--muted); }
+ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+ol.steps li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 16px 60px; position: relative; }
+ol.steps li::before { content: counter(s); position: absolute; left: 16px; top: 14px; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font: 600 14px var(--mono); background: var(--accent); color: var(--bg); }
+ol.steps b { display: block; }
+ol.steps span { color: var(--muted); }
+footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; }
+footer a { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="live"><i></i> running right now</span>
+    <h1><span class="go">Go</span> vs <span class="rust">Rust</span>,<br>live, around the clock.</h1>
+    <p class="lead">The same in-memory cache, written once in each language, takes the same load on the same machine all day and all night. The graphs below are live. Every merged pull request is marked on them, so you can see what a change did.</p>
+    <ul class="facts">
+      <li><b>2</b> dedicated cores each</li>
+      <li><b>1 GiB</b> memory limit each</li>
+      <li><b>5,000</b> GET/s each, from k6</li>
+      <li><b>500,000</b> entries, LRU eviction</li>
+    </ul>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="bar">
+      <div>
+        <h2>The live numbers</h2>
+        <p class="sub" style="margin:0">Latency is what k6 measures from outside. CPU and memory come from cAdvisor, per container.</p>
+      </div>
+      <div class="range" role="group" aria-label="Time range">
+        <button data-from="now-1h">1h</button><button data-from="now-6h" aria-pressed="true">6h</button><button data-from="now-24h">24h</button><button data-from="now-7d">7d</button>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card s3"><iframe data-panel="1" title="GET p99 latency now" loading="lazy"></iframe></div>
+      <div class="card s3"><iframe data-panel="2" title="CPU used now" loading="lazy"></iframe></div>
+      <div class="card s3"><iframe data-panel="3" title="Memory now" loading="lazy"></iframe></div>
+      <div class="card s6"><iframe data-panel="4" title="GET p99 latency" loading="lazy"></iframe></div>
+      <div class="card s6"><iframe data-panel="5" title="Requests per second" loading="lazy"></iframe></div>
+      <div class="card s6"><iframe data-panel="6" title="CPU cores" loading="lazy"></iframe></div>
+      <div class="card s6"><iframe data-panel="7" title="Memory" loading="lazy"></iframe></div>
+      <div class="card s4"><iframe data-panel="8" title="Cache hit ratio" loading="lazy"></iframe></div>
+      <div class="card s4"><iframe data-panel="9" title="Evictions per second" loading="lazy"></iframe></div>
+      <div class="card s4"><iframe data-panel="10" title="Dropped iterations" loading="lazy"></iframe></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What is running now</h2>
+    <p class="sub">Each deploy is a commit on <code>main</code>. The yellow markers on the graphs above are these deploys.</p>
+    <div class="grid"><div class="card s12"><iframe data-panel="11" title="Deploys" loading="lazy"></iframe></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The contenders</h2>
+    <p class="sub">Both start from the same design: 64 shards, each one a hash map with an LRU list behind a mutex.</p>
+    <div class="contenders">
+      <div class="card contender go"><h3>Go</h3><p>Standard library only: <code>net/http</code>, <code>container/list</code>, <code>sync.Mutex</code>. <code>GOMEMLIMIT</code> is set so the garbage collector knows the container limit.</p></div>
+      <div class="card contender rust"><h3>Rust</h3><p><code>axum</code> on <code>tokio</code>, with the <code>lru</code> crate and <code>std::sync::Mutex</code>. Release build with LTO.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap cols">
+    <div>
+      <h2>The service</h2>
+      <p class="sub">Every implementation follows the same spec, and a conformance test checks it before a merge.</p>
+      <div class="table-scroll">
+      <table>
+        <tr><th>Request</th><th>Answer</th></tr>
+        <tr><td><code>PUT /kv/{key}</code></td><td><code>204</code>, or <code>413</code> above 1024 bytes</td></tr>
+        <tr><td><code>GET /kv/{key}</code></td><td><code>200</code> with the value, or <code>404</code></td></tr>
+        <tr><td><code>GET /health</code></td><td><code>200 ok</code></td></tr>
+        <tr><td><code>GET /metrics</code></td><td>entries, hits, misses, evictions</td></tr>
+      </table>
+      </div>
+    </div>
+    <div>
+      <h2>The load</h2>
+      <p class="sub">One k6 process drives both at the same fixed rate, on cores of its own.</p>
+      <div class="table-scroll">
+      <table>
+        <tr><th>Rule</th><th>Value</th></tr>
+        <tr><td>Pattern</td><td>cache-aside: GET, and PUT after a miss</td></tr>
+        <tr><td>Hot keys</td><td>20% of requests hit 100 keys</td></tr>
+        <tr><td>Key space</td><td>1,000,000 keys for 500,000 slots</td></tr>
+        <tr><td>Values</td><td>100 to 1,000 bytes</td></tr>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Make yours faster</h2>
+    <p class="sub">Think your language can do better, or want to add a new one? Open a pull request.</p>
+    <ol class="steps">
+      <li><b>Change the code in <code>impls/&lt;language&gt;/</code></b><span>Any library, any data structure, as long as it follows <code>SPEC.md</code> and stays inside the limits.</span></li>
+      <li><b>Open a pull request</b><span>CI builds the image and runs the conformance test. Nothing from a pull request runs on the benchmark machine.</span></li>
+      <li><b>After review and merge</b><span>The machine picks up <code>main</code> within a minute, rebuilds only what changed and marks the deploy on every graph.</span></li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Built by <a href="https://huseyinbabal.dev">Huseyin Babal</a> · <a href="https://www.youtube.com/@huseyincodes">YouTube</a> · <a href="https://github.com/huseyinbabal/programming-language-wars">Source on GitHub</a></div>
+</footer>
+
+<script>
+const BASE = '/grafana/d-solo/plw/programming-language-wars';
+let from = 'now-6h';
+try { from = localStorage.getItem('plw-range') || from; } catch (e) {}
+function load() {
+  document.querySelectorAll('iframe[data-panel]').forEach((f) => {
+    const q = new URLSearchParams({ orgId: 1, panelId: f.dataset.panel, theme: 'dark', refresh: '10s', from, to: 'now' });
+    f.src = `${BASE}?${q}`;
+  });
+  document.querySelectorAll('.range button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.from === from)));
+}
+document.querySelectorAll('.range button').forEach((b) => b.addEventListener('click', () => {
+  from = b.dataset.from;
+  try { localStorage.setItem('plw-range', from); } catch (e) {}
+  load();
+}));
+load();
+</script>
+</body>
+</html>

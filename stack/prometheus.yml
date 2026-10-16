@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  # the cache counters each implementation reports (SPEC.md, /metrics)
+  - job_name: impl
+    static_configs:
+      - {targets: ["go:8000"], labels: {impl: go}}
+      - {targets: ["rust:8000"], labels: {impl: rust}}
+
+  # CPU and memory per container, measured from outside
+  - job_name: cadvisor
+    static_configs: [{targets: ["cadvisor:8080"]}]
+    metric_relabel_configs:
+      - {source_labels: [container_label_plw_impl], regex: "true", action: keep}
+      - {source_labels: [name], regex: "plw-(.+)", target_label: impl}
+      - {regex: "container_label_plw_impl|id|image", action: labeldrop}

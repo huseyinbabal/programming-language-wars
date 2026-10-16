@@ -1,0 +1,27 @@
+# Runs on GitHub's machines for every pull request: build each implementation and check it against SPEC.md.
+# Nothing here touches the benchmark machine; it only deploys what is merged to main (deploy/deployer.sh).
+name: conformance
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  impl:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        impl: [go, rust]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build
+        run: docker build -t plw-${{ matrix.impl }} impls/${{ matrix.impl }}
+      - name: Start with CAPACITY=128
+        run: |
+          docker run -d --name impl -p 8000:8000 -e CAPACITY=128 --cpuset-cpus=0,1 --memory=1g plw-${{ matrix.impl }}
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && break; sleep 1; done
+          docker logs impl
+      - name: Conformance
+        run: bash tests/conformance.sh http://127.0.0.1:8000

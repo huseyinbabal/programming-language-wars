@@ -1,0 +1,13 @@
+[Unit]
+Description=Programming Language Wars deployer (rebuilds merged code, annotates Grafana)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Environment=REPO_DIR=/opt/plw
+ExecStart=/usr/bin/env bash /opt/plw/deploy/deployer.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

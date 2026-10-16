@@ -1,0 +1,12 @@
+{$SITE_ADDRESS}
+
+encode zstd gzip
+
+handle /grafana/* {
+	reverse_proxy grafana:3000
+}
+
+handle {
+	root * /srv/site
+	file_server
+}
