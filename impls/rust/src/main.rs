@@ -95,7 +95,9 @@ async fn put_kv(State(c): State<Arc<Cache>>, Path(key): Path<String>, body: Byte
     if body.is_empty() {
         return (StatusCode::BAD_REQUEST, "empty value").into_response();
     }
-    c.put(key, body);
+    // The body can be a slice of hyper's much larger read buffer; storing it as is keeps that whole
+    // buffer alive for as long as the entry lives. Copy it into an allocation of its own size.
+    c.put(key, Bytes::copy_from_slice(&body));
     StatusCode::NO_CONTENT.into_response()
 }
 
