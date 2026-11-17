@@ -4,8 +4,8 @@ After=docker.service network-online.target
 Requires=docker.service
 
 [Service]
-Environment=REPO_DIR=/opt/plw
-ExecStart=/usr/bin/env bash /opt/plw/deploy/deployer.sh
+Environment=REPO_DIR=/opt/plw/go-vs-rust
+ExecStart=/usr/bin/env bash /opt/plw/go-vs-rust/deploy/deployer.sh
 Restart=always
 RestartSec=10
 

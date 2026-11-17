@@ -27,15 +27,15 @@ Host github.com
 EOF
 [ -d /opt/plw ] || git clone -q "$REPO" /opt/plw
 
-if [ ! -f /opt/plw/stack/.env ]; then
+if [ ! -f /opt/plw/go-vs-rust/stack/.env ]; then
   sed -e "s|^GF_ADMIN_PASSWORD=.*|GF_ADMIN_PASSWORD=$(openssl rand -hex 16)|" \
       -e "s|^SITE_ADDRESS=.*|SITE_ADDRESS=$DOMAIN|" -e "s|^PUBLIC_URL=.*|PUBLIC_URL=https://$DOMAIN|" \
       -e "s|^HTTP_PORT=.*|HTTP_PORT=80|" -e "s|^HTTPS_PORT=.*|HTTPS_PORT=443|" \
-      /opt/plw/stack/.env.example > /opt/plw/stack/.env
-  chmod 600 /opt/plw/stack/.env
+      /opt/plw/go-vs-rust/stack/.env.example > /opt/plw/go-vs-rust/stack/.env
+  chmod 600 /opt/plw/go-vs-rust/stack/.env
 fi
 
-docker compose -f /opt/plw/stack/compose.yml --env-file /opt/plw/stack/.env up -d --build
-install -m 0644 /opt/plw/deploy/plw-deployer.service /etc/systemd/system/plw-deployer.service
+docker compose -f /opt/plw/go-vs-rust/stack/compose.yml --env-file /opt/plw/go-vs-rust/stack/.env up -d --build
+install -m 0644 /opt/plw/go-vs-rust/deploy/plw-deployer.service /etc/systemd/system/plw-deployer.service
 systemctl daemon-reload && systemctl enable -q --now plw-deployer
 echo "up: https://$DOMAIN"

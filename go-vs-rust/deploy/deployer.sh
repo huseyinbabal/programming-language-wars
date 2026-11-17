@@ -3,7 +3,7 @@
 # it rebuilds only the implementations whose folder changed and writes one Grafana annotation per new commit,
 # so every line on the dashboard can be matched to the code that produced it.
 # Only merged code on main is ever built; pull requests are not run here.
-#   REPO_DIR=/opt/plw bash deploy/deployer.sh          (normally started by plw-deployer.service)
+#   REPO_DIR=/opt/plw/go-vs-rust bash deploy/deployer.sh          (normally started by plw-deployer.service)
 set -euo pipefail
 REPO_DIR=${REPO_DIR:-$(cd "$(dirname "$0")/.." && pwd)}
 INTERVAL=${INTERVAL:-60}
@@ -23,7 +23,7 @@ annotate() { # text, tags as a JSON array
 
 deploy() { # old new
   local old=$1 new=$2 files impls=() tags rest
-  files=$(git diff --name-only "$old" "$new")
+  files=$(git diff --name-only --relative "$old" "$new")   # paths inside go-vs-rust/ only
   for dir in impls/*/; do
     name=$(basename "$dir")
     grep -q "^impls/$name/" <<<"$files" && impls+=("$name")
@@ -34,7 +34,7 @@ deploy() { # old new
 
   tags=$(printf '"%s",' deploy "${impls[@]}"); tags="[${tags%,}]"
   # one annotation per commit on main since the last deploy, oldest first
-  git log --reverse --first-parent --format='%H%x09%s' "$old..$new" | while IFS=$'\t' read -r sha subject; do
+  git log --reverse --first-parent --format='%H%x09%s' "$old..$new" -- . | while IFS=$'\t' read -r sha subject; do
     annotate "$subject · ${sha:0:7} · $REPO_URL/commit/$sha" "$tags"
   done
 }
