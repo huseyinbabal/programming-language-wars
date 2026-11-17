@@ -17,6 +17,12 @@ Grafana shows the live numbers, and every merged pull request is marked on the g
 - **The page**: [`site/index.html`](site/index.html) embeds the Grafana panels; Caddy serves it and proxies `/grafana/`. Grafana allows anonymous viewers only.
 - **Deploys**: [`deploy/deployer.sh`](deploy/deployer.sh) checks `main` every minute, rebuilds the implementations whose folder changed, and writes a Grafana annotation per commit.
 
+## Other comparisons
+
+| Folder | What |
+| --- | --- |
+| [`rust-vs-cpp`](rust-vs-cpp) | The same four programs (sort, word count, integer-key hash maps, parallel word count) in Rust and C++ with the same LLVM version, measured on one 16-core server: code, raw results, profiles |
+
 ## The machine
 
 Live at https://plw.huseyinbabal.dev (one DigitalOcean CPU-Optimized droplet, 8 dedicated vCPUs). One-time setup: [`deploy/setup.sh`](deploy/setup.sh).
